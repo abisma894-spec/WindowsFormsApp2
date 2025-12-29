@@ -266,7 +266,10 @@ namespace WindowsFormsApp2
         void MoveElevator1(int floor)
         {
             if (IsOverLoaded()) return;
-
+            
+            if (doorOpen)
+                CloseDoor(); 
+                
             targetFloor = floor;
 
             if (targetFloor > currentFloor)
@@ -280,6 +283,9 @@ namespace WindowsFormsApp2
 
         void MoveElevator2(int floor)
         {
+            if (doorOpen)
+               CloseDoor();
+            
             targetFloor2 = floor;
 
             if (targetFloor2 > currentFloor2)

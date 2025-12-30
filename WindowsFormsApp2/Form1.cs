@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
@@ -39,10 +39,25 @@ namespace WindowsFormsApp2
         int floor2Y;
         int floor3Y;
 
+        int doorLeftClosedX;
+        int doorRightClosedX;
+
+        int doorLeft2ClosedX;
+        int doorRight2ClosedX;
+        int userFloor = 1;
+
+        const int ARRIVAL_TOLERANCE = 2;
 
         public Form1()
         {
             InitializeComponent();
+
+            doorLeftClosedX = panelDoorLeft.Left;
+            doorRightClosedX = panelDoorRight.Left;
+
+            doorLeft2ClosedX = panelDoorLeft2.Left;
+            doorRight2ClosedX = panelDoorRight2.Left;
+
             floor1Y = panelShaft.Height - panelElevator.Height;
             floor2Y = (panelShaft.Height / 2) - (panelElevator.Height / 2);
             floor3Y = 0;
@@ -60,65 +75,72 @@ namespace WindowsFormsApp2
 
         private void btnUp_Click(object sender, EventArgs e)
         {
-            int requestFloor = currentFloor; // jahan user khara hai
-            if (requestFloor < 3)
-                CallNearestElevator(requestFloor + 1);
+            if (userFloor < 3)
+                CallNearestElevator(userFloor + 1);
 
         }
 
         private void btnDown_Click(object sender, EventArgs e)
         {
-            int requestFloor = currentFloor;
-            if (requestFloor > 1)
-                CallNearestElevator(requestFloor - 1);
+            if (userFloor > 1)
+                CallNearestElevator(userFloor - 1);
         }
 
         private void btnFloor1_Click(object sender, EventArgs e)
         {
-            MoveElevator1(1);
+            userFloor = 1;
+            CallNearestElevator(1);
 
         }
 
         private void btnFloor2_Click(object sender, EventArgs e)
         {
-            MoveElevator1(2);
-
+            userFloor = 2;
+            CallNearestElevator(2);
         }
 
         private void btnFloor3_Click(object sender, EventArgs e)
         {
-            MoveElevator1(3);
+            userFloor = 3;
+            CallNearestElevator(3);
 
         }
 
         private void btnDoor_Click(object sender, EventArgs e)
         {
+            if (currentState == ElevatorState.MovingUp || currentState == ElevatorState.MovingDown)
+                return; 
+
             if (!doorOpen)
                 OpenDoor();
             else
                 CloseDoor();
         }
 
+
         private void timerElevator_Tick(object sender, EventArgs e)
         {
             int targetY = GetFloorY(targetFloor);
+            int diff = targetY - panelElevator.Top;
 
-            if (panelElevator.Top < targetY)
+            if (Math.Abs(diff) <= ARRIVAL_TOLERANCE)
             {
-                panelElevator.Top += 2;
-                UpdateMovingFloor();
-            }
-            else if (panelElevator.Top > targetY)
-            {
-                panelElevator.Top -= 2;
-                UpdateMovingFloor();
-            }
-            else
-            {
+                panelElevator.Top = targetY;   // snap exactly
                 timerElevator.Stop();
                 currentFloor = targetFloor;
                 currentState = ElevatorState.Idle;
                 UpdateUI();
+                OpenDoor();
+            }
+            else if (diff > 0)
+            {
+                panelElevator.Top += 2;
+                UpdateMovingFloor();
+            }
+            else
+            {
+                panelElevator.Top -= 2;
+                UpdateMovingFloor();
             }
         }
         void UpdateMovingFloor()
@@ -152,11 +174,10 @@ namespace WindowsFormsApp2
 
         void CallFloor(int floor)
         {
-            if (IsOverLoaded())
-            {
-                lblOverload.Text = "OVERLOAD!";
-                lblOverload.ForeColor = Color.Red;
-                return;
+            if (IsOverLoaded()) 
+            { 
+                lblOverload.Text = "OVERLOAD!"; 
+                lblOverload.ForeColor = Color.Red; return;
             }
 
             if (doorOpen) return;
@@ -188,22 +209,27 @@ namespace WindowsFormsApp2
         void OpenDoor()
         {
             if (doorOpen) return;
-            currentState = ElevatorState.DoorOpen;
-            doorOpen = true;
+            if (currentState == ElevatorState.MovingUp || currentState == ElevatorState.MovingDown)
+                return;
 
-            panelDoorLeft.Left -= 30;
-            panelDoorRight.Left += 30;
+            doorOpen = true;
+            currentState = ElevatorState.DoorOpen;
+
+            panelDoorLeft.Left = doorLeftClosedX - panelDoorLeft.Width;
+            panelDoorRight.Left = doorRightClosedX + panelDoorRight.Width;
 
             UpdateUI();
         }
 
         void CloseDoor()
         {
-            currentState = ElevatorState.DoorClosed;
-            doorOpen = false;
+            if (!doorOpen) return;
 
-            panelDoorLeft.Left += 30;
-            panelDoorRight.Left -= 30;
+            doorOpen = false;
+            currentState = ElevatorState.DoorClosed;
+
+            panelDoorLeft.Left = doorLeftClosedX;
+            panelDoorRight.Left = doorRightClosedX;
 
             currentState = ElevatorState.Idle;
             UpdateUI();
@@ -212,12 +238,14 @@ namespace WindowsFormsApp2
         void OpenDoor2()
         {
             if (doorOpen2) return;
+            if (currentState2 == ElevatorState.MovingUp || currentState2 == ElevatorState.MovingDown)
+                return;
 
             doorOpen2 = true;
             currentState2 = ElevatorState.DoorOpen;
 
-            panelDoorLeft2.Left -= 30;
-            panelDoorRight2.Left += 30;
+            panelDoorLeft2.Left = doorLeft2ClosedX - panelDoorLeft2.Width;
+            panelDoorRight2.Left = doorRight2ClosedX + panelDoorRight2.Width;
 
             UpdateUI();
         }
@@ -227,11 +255,12 @@ namespace WindowsFormsApp2
             if (!doorOpen2) return;
 
             doorOpen2 = false;
+            currentState2 = ElevatorState.DoorClosed;
+
+            panelDoorLeft2.Left = doorLeft2ClosedX;
+            panelDoorRight2.Left = doorRight2ClosedX;
+
             currentState2 = ElevatorState.Idle;
-
-            panelDoorLeft2.Left += 30;
-            panelDoorRight2.Left -= 30;
-
             UpdateUI();
         }
 
@@ -266,10 +295,11 @@ namespace WindowsFormsApp2
         void MoveElevator1(int floor)
         {
             if (IsOverLoaded()) return;
-            
+            if (floor == currentFloor) return;
+
             if (doorOpen)
-                CloseDoor(); 
-                
+                CloseDoor();
+
             targetFloor = floor;
 
             if (targetFloor > currentFloor)
@@ -283,9 +313,13 @@ namespace WindowsFormsApp2
 
         void MoveElevator2(int floor)
         {
-            if (doorOpen)
-               CloseDoor();
-            
+            if (IsOverLoaded()) return;
+
+            if (floor == currentFloor2) return;
+
+            if (doorOpen2)
+                CloseDoor2();
+
             targetFloor2 = floor;
 
             if (targetFloor2 > currentFloor2)
@@ -298,20 +332,30 @@ namespace WindowsFormsApp2
         }
 
         bool IsOverLoaded()
-        {
+        { 
             return numWeight.Value > 500;
         }
 
         private void timerElevator2_Tick(object sender, EventArgs e)
         {
             int targetY = GetFloorY(targetFloor2);
+            int diff = targetY - panelElevator2.Top;
 
-            if (panelElevator2.Top < targetY)
+            if (Math.Abs(diff) <= ARRIVAL_TOLERANCE)
+            {
+                panelElevator2.Top = targetY;
+                timerElevator2.Stop();
+                currentFloor2 = targetFloor2;
+                currentState2 = ElevatorState.Idle;
+                UpdateUI();
+                OpenDoor2();
+            }
+            else if (diff > 0)
             {
                 panelElevator2.Top += 2;
                 UpdateMovingFloor2();
             }
-            else if (panelElevator2.Top > targetY)
+            else
             {
                 panelElevator2.Top -= 2;
                 UpdateMovingFloor2();
@@ -321,11 +365,15 @@ namespace WindowsFormsApp2
 
         private void btnDoor2_Click(object sender, EventArgs e)
         {
+            if (currentState2 == ElevatorState.MovingUp || currentState2 == ElevatorState.MovingDown)
+                return; 
+
             if (!doorOpen2)
                 OpenDoor2();
             else
                 CloseDoor2();
         }
+
 
         private void btn2Floor_Click(object sender, EventArgs e)
         {
